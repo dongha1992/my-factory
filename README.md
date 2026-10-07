@@ -1,4 +1,4 @@
-# my-factory
+# my-factory (factory-issue-7)
 
 GitHub Project 보드(상태 저장소) + `claude -p`(워커)로 만든 최소 소프트웨어 팩토리.
 `./factory.sh`를 한 번 실행하면 다음이 일어난다.
