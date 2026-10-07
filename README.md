@@ -47,3 +47,5 @@ Todo 이슈 → `claude -p`가 구현 → PR → **QA** 검증 → **AI Review**
 병렬 wave (참고: super-board)
 
 Built by the factory.
+
+예시: ./factory.sh
