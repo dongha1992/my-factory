@@ -56,7 +56,7 @@ build() {
     issue=$(gh issue view "$n" --json title,body -q '"# \(.title)\n\n\(.body)"')
     (cd "$wt" && claude -p "$(cat ../../prompts/build.md)
 
-$issue" --permission-mode acceptEdits --allowedTools "Read,Edit,Write,Glob,Grep,Bash" \
+$issue" --permission-mode acceptEdits --allowedTools "Read,Edit,Write,Glob,Grep,Bash" </dev/null \
       >"../../logs/build-$n.log" 2>&1) || true
     if [ "$(git -C "$wt" rev-list --count main..HEAD)" -gt 0 ]; then
       git -C "$wt" push -q -u origin "$br"
@@ -82,7 +82,7 @@ qa() {
     issue=$(gh issue view "$n" --json title,body -q '"# \(.title)\n\n\(.body)"')
     out=$(cd "$wt" && claude -p "$(cat ../../prompts/qa.md)
 
-$issue" --allowedTools "Read,Glob,Grep,Bash" 2>&1) || true
+$issue" --allowedTools "Read,Glob,Grep,Bash" </dev/null 2>&1) || true
     echo "$out" >"logs/qa-$n.log"
     git worktree remove --force "$wt"
     if [ "$(tail -n1 <<<"$out" | tr -d '[:space:]*`')" = "QA:PASS" ]; then
@@ -107,7 +107,7 @@ ai_review() {
     issue=$(gh issue view "$n" --json title,body -q '"# \(.title)\n\n\(.body)"')
     out=$(cd "$wt" && claude -p "$(cat ../../prompts/review.md)
 
-$issue" --allowedTools "Read,Glob,Grep,Bash" 2>&1) || true
+$issue" --allowedTools "Read,Glob,Grep,Bash" </dev/null 2>&1) || true
     echo "$out" >"logs/review-$n.log"
     git worktree remove --force "$wt"
     verdict=$(tail -n1 <<<"$out" | tr -d '[:space:]*`')
@@ -141,7 +141,7 @@ rework() {
 $issue
 
 ## 리뷰 지적
-$feedback" --permission-mode acceptEdits --allowedTools "Read,Edit,Write,Glob,Grep,Bash" \
+$feedback" --permission-mode acceptEdits --allowedTools "Read,Edit,Write,Glob,Grep,Bash" </dev/null \
       >"../../logs/rework-$n.log" 2>&1) || true
     if [ "$(git -C "$wt" rev-list --count "origin/$br"..HEAD)" -gt 0 ]; then
       git -C "$wt" push -q origin "HEAD:$br"
