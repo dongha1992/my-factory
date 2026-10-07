@@ -16,7 +16,7 @@ Todo 이슈 → `claude -p`가 구현 → PR → **QA** 검증 → **AI Review**
 ```bash
 ./install.sh ~/path/to/project      # main 브랜치가 있는 git repo
 ```
-`factory/`(스크립트·프롬프트), `.claude/hooks/guard-push.py`, `settings.json` 훅, `.gitignore`를 넣는다.
+`factory/`(스크립트·프롬프트), `.claude/{hooks,bin,skills,workflows}`, `settings.json` 훅 병합, `.gitignore`를 넣는다.
 여러 번 실행해도 안전하고 `factory/.factory.env`와 기존 설정은 건드리지 않는다.
 설치 후 안내에 따라 `.factory.env`를 채우고, **변경분을 main에 커밋·push**해야 워커 worktree가 가드 훅을 받는다.
 
@@ -26,6 +26,10 @@ Todo 이슈 → `claude -p`가 구현 → PR → **QA** 검증 → **AI Review**
 | `factory.sh` | 보드를 읽고 카드마다 워커를 실행, PR 생성, 카드 이동 |
 | `prompts/*.md` | build · qa · review · rework 워커 지시문 |
 | `.claude/hooks/guard-push.py` | 워커의 `git push` 차단 (push는 `factory.sh`만 한다) |
+| `.claude/hooks/guard-{secrets,key-literals,delete-outside,worktree-path}.py` | 시크릿 접근·키 하드코딩·레포 밖 삭제·worktree 경로 이탈 차단 (super-board에서 이식) |
+| `.claude/hooks/cleanup-wt.py` | 머지된 worktree·브랜치 정리 (SessionStart에서 자동 실행) |
+| `.claude/bin/` | `super-board-pr-body.sh`(PR 본문 블록 단위 갱신), gh 한도 가드, card/env-check, 버그·리팩터 티켓 파일러 |
+| `.claude/skills/` | git-sync · visual · super-build/qa/review · super-collect · ui-refine-loop + 작성 표준(`super-board/references/`) |
 | `setup-board.sh` | Project 생성·연결, Status 컬럼 8개 설정 |
 | `install.sh` | 다른 프로젝트에 팩토리 설치 |
 | `tests/` | 가드·레인·설치 테스트 |
@@ -55,6 +59,11 @@ Todo 이슈 → `claude -p`가 구현 → PR → **QA** 검증 → **AI Review**
 - `bash tests/test_factory.sh` — 가짜 gh/claude로 레인 이동 8개 시나리오 (`SUBDIR=1`이면 설치된 `factory/` 위치에서 실행)
 - `bash tests/test_install.sh` — 설치 결과·멱등성·기존 설정 보존
 - `bash tests/test_setup_board.sh` — 컬럼 설정·`--new`·카드 보호
+
+## super-board에서 이식한 것
+- 스킬은 사람이 세션에서 직접 쓰는 용도다(`/git-sync`, `/visual` 등). 레인 스킬(super-build/qa/review)은 super-board의 config·카드 이동을 전제하므로, 팩토리 워커는 `prompts/*.md`(핵심 규칙만 이식)를 따른다.
+- 오케스트레이터(`super-board`, wave 루프)는 `factory.sh`와 역할이 겹쳐 가져오지 않았다. 스킬이 참조하는 `references/`만 둔다.
+- 주의: `.worktrees/`는 `cleanup-wt.py`가 허용 경로(`.claude/worktrees/`) 밖으로 보므로, 머지된 것만 정리하고 미머지는 `--force` 없이는 건드리지 않는다.
 
 ## 다음에 추가할 것 (필요해질 때만)
 병렬 wave (참고: super-board)

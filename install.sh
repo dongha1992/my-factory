@@ -15,14 +15,19 @@ cp "$SRC/factory.sh" "$SRC/setup-board.sh" "$T/factory/"
 cp "$SRC"/prompts/*.md "$T/factory/prompts/"
 cp "$SRC/.factory.env.example" "$T/factory/"
 
-# 2) push 가드 훅 + settings.json 병합 (이미 있으면 건너뜀)
-mkdir -p "$T/.claude/hooks"
-cp "$SRC/.claude/hooks/guard-push.py" "$T/.claude/hooks/"
-s=$T/.claude/settings.json; [ -f "$s" ] || echo '{}' >"$s"
-jq 'if ([.hooks.PreToolUse[]?.hooks[]?.command]|any(contains("guard-push.py"))) then . else
-  .hooks.PreToolUse += [{"matcher":"Bash","hooks":[{"type":"command","command":"python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-push.py\""}]}] end' "$s" >"$s.tmp" && mv "$s.tmp" "$s"
+# 2) 훅·스크립트·스킬·워크플로우 복사 (.claude/ 아래, 같은 이름은 덮어쓴다)
+mkdir -p "$T/.claude"
+cp -R "$SRC/.claude/hooks" "$SRC/.claude/bin" "$SRC/.claude/skills" "$SRC/.claude/workflows" "$T/.claude/"
+find "$T/.claude" -name __pycache__ -prune -exec rm -rf {} +
 
-# 3) .gitignore
+# 3) settings.json 병합: 훅 command가 이미 있으면 건너뛰고, 기존 설정은 보존
+s=$T/.claude/settings.json; [ -f "$s" ] || echo '{}' >"$s"
+jq -s '.[0] as $t | .[1].hooks as $h | reduce ($h|to_entries[]) as $ev ($t;
+  reduce $ev.value[] as $entry (.;
+    if ([.hooks[$ev.key][]?.hooks[]?.command] | index($entry.hooks[0].command)) then . else .hooks[$ev.key] += [$entry] end))' \
+  "$s" "$SRC/.claude/settings.json" >"$s.tmp" && mv "$s.tmp" "$s"
+
+# 4) .gitignore
 touch "$T/.gitignore"
 for l in factory/.factory.env factory/logs/ factory/.worktrees/; do
   grep -qxF "$l" "$T/.gitignore" || echo "$l" >>"$T/.gitignore"
