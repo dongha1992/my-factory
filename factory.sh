@@ -16,18 +16,24 @@ move() { gh project item-edit --project-id "$pid" --id "$1" --field-id "$fid" --
 # 해당 컬럼의 이슈 카드를 "번호 카드id" 줄로 출력
 cards() { gh project item-list "$PROJECT" --owner "$OWNER" --format json -L 100 |
   jq -r --arg s "$1" '.items[]|select(.status==$s and .content.type=="Issue")|"\(.content.number) \(.id)"'; }
-pr_of() { gh pr list --head "factory/issue-$1" --state all --json number,state -q '.[0]|"\(.number) \(.state)"'; }
+pr_of() { gh pr list --head "factory/issue-$1" --state all --json number,state,mergeable -q '.[0]|"\(.number) \(.state) \(.mergeable)"'; }
 title_of() { gh issue view "$1" --json title -q .title; }
 
-# Review 카드의 PR이 머지됐으면 Done, 머지 없이 닫혔으면 Blocked
+# QA/Review 카드의 PR 상태 반영: 머지됨 -> Done, 머지 없이 닫힘 -> Blocked, main과 충돌 -> Blocked
 sync() {
-  while read -r n id; do
-    read -r _ state <<<"$(pr_of "$n")"
-    case "$state" in
-      MERGED) move "$id" "$DONE"; echo "#$n 머지됨 -> $DONE" ;;
-      CLOSED) move "$id" "$BLOCKED"; echo "#$n PR 닫힘 -> $BLOCKED" ;;
-    esac
-  done <<<"$(cards "$REVIEW")"
+  for col in "$REVIEW" "$QA"; do
+    while read -r n id; do
+      [ -z "$n" ] && continue
+      read -r pr state mergeable <<<"$(pr_of "$n")"
+      case "$state/$mergeable" in
+        MERGED/*) move "$id" "$DONE"; echo "#$n 머지됨 -> $DONE" ;;
+        CLOSED/*) move "$id" "$BLOCKED"; echo "#$n PR 닫힘 -> $BLOCKED" ;;
+        OPEN/CONFLICTING)
+          gh pr comment "$pr" --body "factory: main과 충돌해 Blocked로 옮겼습니다. main을 병합해 충돌을 푼 뒤 QA로 되돌려 주세요." >/dev/null
+          move "$id" "$BLOCKED"; echo "#$n 충돌 -> $BLOCKED" ;;
+      esac
+    done <<<"$(cards "$col")"
+  done
 }
 
 # Ready 이슈마다 worktree에서 구현시키고 PR을 연다

@@ -24,7 +24,7 @@ Todo 이슈 → `claude -p`가 구현 → PR → **QA** 워커가 검증 → **R
 |---|---|---|
 | Todo | build 워커가 구현, PR 생성 | QA (커밋이 없으면 Blocked) |
 | QA | qa 워커가 PR을 읽기 전용으로 검증, PR에 결과 코멘트 | 통과 → Review, 실패/판정 불가 → Blocked |
-| Review | 사람이 PR을 머지 | 머지됨 → Done, 머지 없이 닫힘 → Blocked |
+| Review | 사람이 PR을 머지 | 머지됨 → Done, 머지 없이 닫힘 또는 main과 충돌 → Blocked (QA 컬럼의 PR도 같은 검사) |
 
 - QA는 마지막 줄이 `QA: PASS`일 때만 통과한다. 그 외는 전부 실패로 처리한다.
 - Blocked 카드는 사람이 이슈나 PR을 고친 뒤 Todo/QA로 되돌려야 재시도된다.
@@ -32,6 +32,6 @@ Todo 이슈 → `claude -p`가 구현 → PR → **QA** 워커가 검증 → **R
 - 한 번 실행에 `sync → build → qa` 순서로 돈다.
 
 ## 다음에 추가할 것 (필요해질 때만)
-리뷰 레인(AI), 반려(send-back) 루프, 충돌한 PR 감지, 병렬 wave (참고: super-board)
+리뷰 레인(AI), 반려(send-back) 루프, 병렬 wave (참고: super-board)
 
 Built by the factory.
