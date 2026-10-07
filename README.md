@@ -51,6 +51,7 @@ Todo 이슈 → `claude -p`가 구현 → PR → **QA** 검증 → **AI Review**
 - 판정은 마지막 줄(`QA: PASS`, `REVIEW: APPROVE`)만 인정한다. 그 외는 전부 실패다.
 - 어느 컬럼이든 PR이 머지 없이 닫히거나 main과 충돌하면 Blocked.
 - `TEST_CMD`를 설정하면 QA 워커 전에 PR 브랜치에서 실행한다(종료 코드만 봄). 실패는 `[Check] ❌` 댓글과 함께 Rework, `MAX_REWORK` 초과 시 Blocked.
+  `TEST_CMD='for t in tests/test_*.sh; do bash $t || exit 1; done; python3 tests/test_guard.py'`
 - AI Review 승인 댓글 끝에 `머지 위험도`(단방향/양방향 문, 폭발 반경, 되돌리기)가 붙는다. 경로 패턴과 파일 수로 계산한다. 양방향·국소면 훑어보고 머지, 아니면 꼼꼼히 리뷰.
 - 한 번 실행에 `sync → rework → build → qa → ai_review` 순서로 돈다.
 - 로그는 `logs/{build,qa,review,rework}-N.log`(git 제외).
