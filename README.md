@@ -33,3 +33,5 @@ Todo 이슈 → `claude -p`가 구현 → PR → **QA** 워커가 검증 → **R
 
 ## 다음에 추가할 것 (필요해질 때만)
 QA 레인, 리뷰 레인, 병렬 wave (참고: super-board)
+
+Built by the factory.
