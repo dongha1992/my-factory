@@ -13,3 +13,5 @@ Test: `python3 tests/test_guard.py`
 
 ## Next (only when needed)
 QA lane, review lane, Blocked column, parallel waves (see super-board).
+
+Built by the factory.
