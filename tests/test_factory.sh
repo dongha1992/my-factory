@@ -28,4 +28,9 @@ check "QA 판정 불가(마지막 줄 이상) -> Blocked"  "Blocked," "$(STUB_QA
 check "리뷰 반려 3회째 -> Blocked" "Blocked," "$(STUB_REVIEW=CHANGES STUB_COMMENTS='{"body":"[AI Review] ❌ a"},{"body":"[AI Review] ❌ b"}' run "AI Review")"
 check "Rework 수정 커밋 -> QA(다시 QA부터 흐름)" "QA,AI Review,Review," "$(run Rework)"
 check "Rework 커밋 없음 -> Blocked"            "Blocked," "$(STUB_NO_COMMIT=1 run Rework)"
+check "TEST_CMD 실패 -> Rework (QA 워커 안 부름)" "Rework," "$(TEST_CMD=false run QA)"
+check "TEST_CMD 3회째 실패 -> Blocked" "Blocked," "$(TEST_CMD=false STUB_COMMENTS='{"body":"[Check] ❌ a"},{"body":"[Check] ❌ b"}' run QA)"
+check "TEST_CMD 통과 -> 기존 QA 흐름" "AI Review,Review," "$(TEST_CMD=true STUB_QA=PASS run QA)"
+: > "$STUB_LOG"; STUB_QA=PASS STUB_REVIEW=APPROVE run QA >/dev/null
+check "승인 댓글에 위험도(양방향·국소)" "1" "$(grep -c '머지 위험도.*양방향 문 · 폭발 반경 국소(1개 파일) → 훑어보고 머지' "$STUB_LOG")"
 check "포인트 부족이면 아무것도 안 함"            "" "$(STUB_QUOTA=10 run QA)"

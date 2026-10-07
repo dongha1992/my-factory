@@ -70,6 +70,17 @@ $issue" --permission-mode acceptEdits --allowedTools "Read,Edit,Write,Glob,Grep,
   done <<<"$(cards "$READY")"
 }
 
+# 머지 위험도: 바뀐 경로로 결정적으로 계산한다 (단방향 문 = 되돌리기 어려운 경로, 폭발 반경 = 파일 수)
+risk_of() {
+  local files count door blast advice
+  files=$(git diff --name-only "origin/main...origin/factory/issue-$1")
+  count=$(grep -c . <<<"$files" || true)
+  if grep -Eiq '(^|/)\.env|secret|\.github/|migrat|\.sql$|dockerfile|deploy' <<<"$files"; then door="단방향 문 (시크릿·CI·마이그레이션·배포 경로 포함)"; else door="양방향 문"; fi
+  if [ "$count" -le 3 ]; then blast="국소(${count}개 파일)"; elif [ "$count" -le 10 ]; then blast="기능 단위(${count}개 파일)"; else blast="광범위(${count}개 파일)"; fi
+  case "$door/$blast" in 양방향*/국소*) advice="훑어보고 머지" ;; *) advice="꼼꼼히 리뷰" ;; esac
+  printf '**머지 위험도**: %s · 폭발 반경 %s → %s\n되돌리기: PR revert' "$door" "$blast" "$advice"
+}
+
 # QA 카드: PR 브랜치를 읽기 전용 워커가 검증. 마지막 줄이 `QA: PASS`일 때만 통과(그 외는 전부 실패)
 qa() {
   git fetch -q origin
@@ -79,6 +90,19 @@ qa() {
     echo "== qa #$n (PR #$pr)"
     wt=.worktrees/qa-$n
     git worktree add -q --detach "$wt" "origin/factory/issue-$n"
+    # 결정적 게이트: TEST_CMD가 있으면 QA 워커 전에 종료 코드만 본다(토큰 0). 실패는 Rework, 반복되면 Blocked
+    if [ -n "${TEST_CMD:-}" ] && ! (cd "$wt" && bash -c "$TEST_CMD") >"logs/check-$n.log" 2>&1 </dev/null; then
+      git worktree remove --force "$wt"
+      fails=$(gh pr view "$pr" --json comments -q '[.comments[]|select(.body|startswith("[Check] ❌"))]|length')
+      if [ "$fails" -lt "$MAX_REWORK" ]; then
+        gh pr comment "$pr" --body "[Check] ❌ 테스트 실패 ($((fails+1))/$MAX_REWORK)"$'\n\n'"$(tail -n 30 "logs/check-$n.log")" >/dev/null
+        move "$id" "$REWORK"
+      else
+        gh pr comment "$pr" --body "[Check] ⛔ Blocked (테스트 실패 ${MAX_REWORK}회 초과). 로그: logs/check-$n.log" >/dev/null
+        move "$id" "$BLOCKED"
+      fi
+      continue
+    fi
     issue=$(gh issue view "$n" --json title,body -q '"# \(.title)\n\n\(.body)"')
     out=$(cd "$wt" && claude -p "$(cat ../../prompts/qa.md)
 
@@ -113,7 +137,7 @@ $issue" --allowedTools "Read,Glob,Grep,Bash" </dev/null 2>&1) || true
     verdict=$(tail -n1 <<<"$out" | tr -d '[:space:]*`')
     tries=$(gh pr view "$pr" --json comments -q '[.comments[]|select(.body|startswith("[AI Review] ❌"))]|length')
     if [ "$verdict" = "REVIEW:APPROVE" ]; then
-      gh pr comment "$pr" --body "[AI Review] ✅ 승인"$'\n\n'"$out" >/dev/null
+      gh pr comment "$pr" --body "[AI Review] ✅ 승인"$'\n\n'"$out"$'\n\n'"$(risk_of "$n")" >/dev/null
       move "$id" "$REVIEW"
     elif [ "$verdict" = "REVIEW:CHANGES" ] && [ "$tries" -lt "$MAX_REWORK" ]; then
       gh pr comment "$pr" --body "[AI Review] ❌ 수정 요청 ($((tries+1))/$MAX_REWORK)"$'\n\n'"$out" >/dev/null
@@ -135,7 +159,7 @@ rework() {
     wt=.worktrees/rw-$n br=factory/issue-$n
     git worktree add -q -B "$br" "$wt" "origin/$br"
     issue=$(gh issue view "$n" --json title,body -q '"# \(.title)\n\n\(.body)"')
-    feedback=$(gh pr view "$pr" --json comments -q '[.comments[]|select(.body|startswith("[AI Review] ❌"))]|last|.body')
+    feedback=$(gh pr view "$pr" --json comments -q '[.comments[]|select(.body|startswith("[AI Review] ❌") or startswith("[Check] ❌"))]|last|.body')
     (cd "$wt" && claude -p "$(cat ../../prompts/rework.md)
 
 $issue
