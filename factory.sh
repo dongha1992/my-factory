@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# One pass: every Ready issue -> claude -p in its own worktree -> PR -> Done.
-# DRY_RUN=1 only lists the cards.
+# 1회 실행: Ready 이슈마다 worktree 생성 -> claude -p 구현 -> PR -> Done 이동.
+# DRY_RUN=1 이면 카드 목록만 출력한다.
 set -euo pipefail
 cd "$(dirname "$0")"
 source .factory.env
@@ -16,7 +16,7 @@ move() { gh project item-edit --project-id "$pid" --id "$1" --field-id "$fid" --
 cards=$(gh project item-list "$PROJECT" --owner "$OWNER" --format json -L 100 |
   jq -r --arg s "$READY" '.items[]|select(.status==$s and .content.type=="Issue")|"\(.content.number) \(.id)"')
 
-[ -z "$cards" ] && { echo "no Ready cards"; exit 0; }
+[ -z "$cards" ] && { echo "Ready 카드 없음"; exit 0; }
 [ -n "${DRY_RUN:-}" ] && { echo "$cards"; exit 0; }
 
 while read -r n id; do
@@ -32,11 +32,11 @@ $issue" --permission-mode acceptEdits --allowedTools "Read,Edit,Write,Glob,Grep,
   if [ "$(git -C "$wt" rev-list --count main..HEAD)" -gt 0 ]; then
     git -C "$wt" push -q -u origin "$br"
     gh pr create --head "$br" --title "$(gh issue view "$n" --json title -q .title)" \
-      --body "Closes #$n"$'\n\nlog: logs/issue-'"$n"'.log' >/dev/null
+      --body "Closes #$n" >/dev/null
     move "$id" "$DONE"
   else
-    gh issue comment "$n" --body "factory: no commits produced, see logs/issue-$n.log" >/dev/null
-    move "$id" "$READY"   # ponytail: no Blocked column; retried next pass, add one when this loops
+    gh issue comment "$n" --body "factory: 커밋이 만들어지지 않았습니다. 로그: logs/issue-$n.log" >/dev/null
+    move "$id" "$READY"   # ponytail: Blocked 컬럼 없음. 다음 실행 때 재시도됨. 반복되면 Blocked 추가
   fi
   git worktree remove --force "$wt"
 done <<<"$cards"
