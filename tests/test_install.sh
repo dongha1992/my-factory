@@ -10,7 +10,7 @@ echo "keep" > .gitignore
 ok() { echo "ok  $1"; }; bad() { echo "FAIL $1"; exit 1; }
 
 "$SRC/install.sh" "$T/p" >/dev/null
-[ -x factory/factory.sh ] && [ -f factory/prompts/qa.md ] && [ -f .claude/hooks/guard-push.py ] || bad "파일 설치"; ok "파일 설치"
+[ -x factory/factory.sh ] && [ -x factory/setup-board.sh ] && [ -f factory/prompts/qa.md ] && [ -f .claude/hooks/guard-push.py ] || bad "파일 설치"; ok "파일 설치"
 [ "$(jq '[.hooks.PreToolUse[]|select(.hooks[0].command|contains("guard-push"))]|length' .claude/settings.json)" = 1 ] || bad "훅 등록"
 jq -e '.permissions.allow[0]=="Bash(ls)" and (.hooks.PreToolUse|length)==2' .claude/settings.json >/dev/null || bad "기존 설정 보존"; ok "훅 등록 + 기존 설정 보존"
 

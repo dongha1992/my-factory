@@ -7,9 +7,10 @@ Todo 이슈 → `claude -p`가 구현 → PR → **QA** 검증 → **AI Review**
 
 ## 준비
 1. `gh auth refresh -s project` (`project` 권한 필요)
-2. repo와 Project를 만들고, 이슈를 카드로 추가해 Ready 컬럼(기본 `Todo`)에 둔다
-3. `cp .factory.env.example .factory.env` 후 `OWNER`, `PROJECT` 입력
-4. `DRY_RUN=1 ./factory.sh`로 카드 목록 확인 → `./factory.sh` 실행
+2. `cp .factory.env.example .factory.env` 후 `OWNER` 입력
+3. `./setup-board.sh --new` — Project 생성, repo 연결, Status 컬럼 8개 설정, `PROJECT` 자동 기록
+   (이미 있는 Project는 `PROJECT`를 적고 `./setup-board.sh`. 상태가 있는 카드가 있으면 중단하고 `--force`가 필요하다. 컬럼 교체가 카드 상태를 지우기 때문이다.)
+4. 이슈를 카드로 추가해 `Todo`에 두고 `DRY_RUN=1 ./factory.sh`로 확인 → `./factory.sh` 실행
 
 ## 다른 프로젝트에 설치
 ```bash
@@ -25,6 +26,7 @@ Todo 이슈 → `claude -p`가 구현 → PR → **QA** 검증 → **AI Review**
 | `factory.sh` | 보드를 읽고 카드마다 워커를 실행, PR 생성, 카드 이동 |
 | `prompts/*.md` | build · qa · review · rework 워커 지시문 |
 | `.claude/hooks/guard-push.py` | 워커의 `git push` 차단 (push는 `factory.sh`만 한다) |
+| `setup-board.sh` | Project 생성·연결, Status 컬럼 8개 설정 |
 | `install.sh` | 다른 프로젝트에 팩토리 설치 |
 | `tests/` | 가드·레인·설치 테스트 |
 
@@ -52,6 +54,7 @@ Todo 이슈 → `claude -p`가 구현 → PR → **QA** 검증 → **AI Review**
 - `python3 tests/test_guard.py` — push 가드
 - `bash tests/test_factory.sh` — 가짜 gh/claude로 레인 이동 8개 시나리오 (`SUBDIR=1`이면 설치된 `factory/` 위치에서 실행)
 - `bash tests/test_install.sh` — 설치 결과·멱등성·기존 설정 보존
+- `bash tests/test_setup_board.sh` — 컬럼 설정·`--new`·카드 보호
 
 ## 다음에 추가할 것 (필요해질 때만)
 병렬 wave (참고: super-board)

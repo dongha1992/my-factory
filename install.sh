@@ -11,7 +11,7 @@ command -v jq >/dev/null || { echo "jq가 필요합니다"; exit 1; }
 
 # 1) 팩토리 본체: <대상>/factory/
 mkdir -p "$T/factory/prompts"
-cp "$SRC/factory.sh" "$T/factory/"
+cp "$SRC/factory.sh" "$SRC/setup-board.sh" "$T/factory/"
 cp "$SRC"/prompts/*.md "$T/factory/prompts/"
 cp "$SRC/.factory.env.example" "$T/factory/"
 
@@ -32,8 +32,9 @@ cat <<MSG
 ✅ 설치 완료: $T
 다음 단계:
   1. gh auth refresh -s project            (project 권한)
-  2. GitHub Project를 만들고 Status 컬럼을 Todo · In Progress · QA · AI Review · Rework · Review · Blocked · Done 으로 맞춘다
-  3. cp factory/.factory.env.example factory/.factory.env  후 OWNER, PROJECT 입력
+  2. cp factory/.factory.env.example factory/.factory.env  후 OWNER 입력
+  3. factory/setup-board.sh --new          (Project 생성·repo 연결·컬럼 8개 설정, PROJECT 자동 기록)
+     이미 만든 Project를 쓰려면 PROJECT를 적고 factory/setup-board.sh
   4. 변경분(factory/, .claude/, .gitignore)을 main에 커밋·push  ← 워커가 이 훅을 받아야 한다
   5. DRY_RUN=1 factory/factory.sh  →  factory/factory.sh
 MSG
