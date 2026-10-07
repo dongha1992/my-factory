@@ -11,13 +11,22 @@ Todo 이슈 → `claude -p`가 구현 → PR → **QA** 검증 → **AI Review**
 3. `cp .factory.env.example .factory.env` 후 `OWNER`, `PROJECT` 입력
 4. `DRY_RUN=1 ./factory.sh`로 카드 목록 확인 → `./factory.sh` 실행
 
+## 다른 프로젝트에 설치
+```bash
+./install.sh ~/path/to/project      # main 브랜치가 있는 git repo
+```
+`factory/`(스크립트·프롬프트), `.claude/hooks/guard-push.py`, `settings.json` 훅, `.gitignore`를 넣는다.
+여러 번 실행해도 안전하고 `factory/.factory.env`와 기존 설정은 건드리지 않는다.
+설치 후 안내에 따라 `.factory.env`를 채우고, **변경분을 main에 커밋·push**해야 워커 worktree가 가드 훅을 받는다.
+
 ## 구성
 | 파일 | 역할 |
 |---|---|
 | `factory.sh` | 보드를 읽고 카드마다 워커를 실행, PR 생성, 카드 이동 |
 | `prompts/*.md` | build · qa · review · rework 워커 지시문 |
 | `.claude/hooks/guard-push.py` | 워커의 `git push` 차단 (push는 `factory.sh`만 한다) |
-| `tests/` | 가드 테스트, 가짜 gh/claude 기반 레인 테스트 |
+| `install.sh` | 다른 프로젝트에 팩토리 설치 |
+| `tests/` | 가드·레인·설치 테스트 |
 
 ## 레인
 | 컬럼 | 담당 | 다음 |
@@ -41,7 +50,8 @@ Todo 이슈 → `claude -p`가 구현 → PR → **QA** 검증 → **AI Review**
 
 ## 테스트 (오프라인, 네트워크 불필요)
 - `python3 tests/test_guard.py` — push 가드
-- `bash tests/test_factory.sh` — 가짜 gh/claude로 레인 이동 8개 시나리오
+- `bash tests/test_factory.sh` — 가짜 gh/claude로 레인 이동 8개 시나리오 (`SUBDIR=1`이면 설치된 `factory/` 위치에서 실행)
+- `bash tests/test_install.sh` — 설치 결과·멱등성·기존 설정 보존
 
 ## 다음에 추가할 것 (필요해질 때만)
 병렬 wave (참고: super-board)
