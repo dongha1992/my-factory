@@ -6,3 +6,4 @@ assert g.blocked("git -C x push -f")
 assert not g.blocked("git commit -m 'push notes'")
 assert not g.blocked("git status")
 print("ok")
+assert False, "일부러 깨뜨림"
