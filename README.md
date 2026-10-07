@@ -38,12 +38,15 @@ Todo 이슈 → `claude -p`가 구현 → PR → **QA** 검증 → **AI Review**
 | 컬럼 | 담당 | 다음 |
 |---|---|---|
 | Todo | build 워커가 구현, PR 생성 | QA (커밋이 없으면 Blocked) |
-| QA | qa 워커(읽기 전용)가 테스트 실행·요구사항 대조 | 통과 → AI Review, 실패/판정 불가 → Blocked |
-| AI Review | 리뷰 워커(읽기 전용)가 diff 품질 검토 | 승인 → Review, 수정 요청 → Rework, 판정 불가 → Blocked |
+| QA | qa 워커(읽기 전용)가 테스트 실행·요구사항 대조 | 통과 → AI Review, 실패 → Rework, 판정 불가 → Blocked |
+| AI Review | 리뷰 워커(읽기 전용)가 diff 품질 검토 | 승인 → Review, 수정 요청 → Rework 또는 QA(`[qa]`만), 판정 불가 → Blocked |
 | Rework | build 워커가 같은 브랜치에서 지적 사항 수정 | QA (수정 커밋이 없으면 Blocked) |
 | Review | 사람이 PR을 머지 | 머지됨 → Done |
 | Blocked | 사람이 원인을 고친 뒤 Todo/QA로 되돌린다 | |
 
+- 반려 라우팅: 리뷰 지적에 `[builder]`(코드 수정)가 있으면 Rework, `[qa]`(검증 보강)만 있으면 코드 수정 없이 QA 재검증. QA 실패도 Rework로 간다.
+- main과 충돌하면 Rework에서 `git merge origin/main`으로 풀고 QA부터 다시 간다(`MAX_REWORK`회 초과 시 Blocked).
+- QA·리뷰·테스트·충돌 결과는 PR에 리포트 댓글 하나(`<!-- factory:report -->`)를 제자리 갱신해 쌓는다. 반려 횟수도 이 표에서 센다.
 - 수정 요청은 PR당 최대 `MAX_REWORK`회(기본 2). 넘으면 Blocked.
 - 판정은 마지막 줄(`QA: PASS`, `REVIEW: APPROVE`)만 인정한다. 그 외는 전부 실패다.
 - 어느 컬럼이든 PR이 머지 없이 닫히거나 main과 충돌하면 Blocked.

@@ -12,7 +12,7 @@ case "$1 $2" in
   "project field-list") [ -n "${STUB_OLD:-}" ] && emit '{"fields":[{"name":"Status","id":"FID","options":[{"name":"Todo","id":"a"},{"name":"In Progress","id":"b"},{"name":"Done","id":"c"}]}]}' || emit '{"fields":[{"name":"Status","id":"FID","options":[{"name":"Todo","id":"o_Todo"},{"name":"In Progress","id":"o_In Progress"},{"name":"QA","id":"o_QA"},{"name":"AI Review","id":"o_AI Review"},{"name":"Rework","id":"o_Rework"},{"name":"Review","id":"o_Review"},{"name":"Blocked","id":"o_Blocked"},{"name":"Done","id":"o_Done"}]}]}' ;;
   "project item-list") emit '{"items":[{"id":"ITEM1","status":"'"$STUB_STATUS"'","content":{"type":"Issue","number":1}}]}' ;;
   "project item-edit") for ((i=0;i<${#args[@]};i++)); do [ "${args[i]}" = "--single-select-option-id" ] && echo "${args[i+1]#o_}" >> "$STUB_LOG.moves"; done ;;
-  "pr list") emit '[{"number":9,"state":"OPEN","mergeable":"MERGEABLE","headRefName":"factory/issue-1"}]' ;;
+  "pr list") emit '[{"number":9,"state":"OPEN","mergeable":"'"$([ -n "${STUB_PR_CONFLICT:-}" ] && echo CONFLICTING || echo MERGEABLE)"'","headRefName":"factory/issue-1"}]' ;;
   "pr view") emit '{"comments":['"${STUB_COMMENTS:-}"']}' ;;
   "issue view") emit '{"title":"제목","body":"본문"}' ;;
 esac

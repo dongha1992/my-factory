@@ -3,6 +3,6 @@
 p=$2
 case "$p" in
   *"QA 워커"*)        echo "근거"; echo "QA: ${STUB_QA:-PASS}" ;;
-  *"AI 리뷰 워커"*)   echo "지적"; echo "REVIEW: ${STUB_REVIEW:-APPROVE}" ;;
+  *"AI 리뷰 워커"*)   echo "${STUB_FINDING:-지적}"; echo "REVIEW: ${STUB_REVIEW:-APPROVE}" ;;
   *"리뷰에서 반려"*)  [ -z "${STUB_NO_COMMIT:-}" ] && { echo fix >> README.md; git add -A; git commit -qm "수정"; } ;;
 esac

@@ -26,6 +26,23 @@ cards() { jq -r --arg s "$1" '.items[]|select(.status==$s and .content.type=="Is
 # PR 목록도 한 번만 읽는다 (PR을 만든 뒤에는 refresh_prs)
 refresh_prs() { PRS=$(gh pr list --state all --limit 100 --json number,state,mergeable,headRefName); }
 pr_of() { jq -r --arg h "factory/issue-$1" 'map(select(.headRefName==$h))|.[0]|"\(.number) \(.state) \(.mergeable)"' <<<"$PRS"; }
+# PR 리포트: 댓글 하나를 제자리 갱신한다(표에 한 줄 추가 + "최근 상세" 교체). 반려 횟수도 이 표에서 센다
+REPORT_MARK='<!-- factory:report -->'
+report_c() { gh pr view "$1" --json comments -q '[.comments[]|select(.body|startswith("'"$REPORT_MARK"'"))]|last // empty'; }
+report_body() { local c; c=$(report_c "$1"); jq -r '.body // ""' <<<"${c:-null}"; }
+rounds() { report_body "$1" | grep -c "^| [0-9]* | $2 | ❌" || true; }
+last_detail() { report_body "$1" | awk '/^### 최근 상세/{f=1;next} f'; }
+report() { # <pr> <레인> <결과> <상세>
+  local c body rows n new
+  c=$(report_c "$1"); body=$(jq -r '.body // ""' <<<"${c:-null}")
+  rows=$(grep '^| [0-9]' <<<"$body" || true); n=$(grep -c . <<<"$rows" || true)
+  new=$(printf '%s\n## 🏭 Factory 리포트\n\n| # | 레인 | 결과 |\n|---|---|---|\n%s| %d | %s | %s |\n\n### 최근 상세 (%s)\n%s\n' \
+    "$REPORT_MARK" "${rows:+$rows$'\n'}" $((n+1)) "$2" "$3" "$2" "$4")
+  if [ -n "$c" ]; then
+    local url; url=$(jq -r '.url // ""' <<<"$c")
+    gh api -X PATCH "repos/{owner}/{repo}/issues/comments/${url##*issuecomment-}" -f body="$new" >/dev/null
+  else gh pr comment "$1" --body "$new" >/dev/null; fi
+}
 title_of() { gh issue view "$1" --json title -q .title; }
 
 # QA/Review 카드의 PR 상태 반영: 머지됨 -> Done, 머지 없이 닫힘 -> Blocked, main과 충돌 -> Blocked
@@ -38,8 +55,14 @@ sync() {
         MERGED/*) move "$id" "$DONE"; echo "#$n 머지됨 -> $DONE" ;;
         CLOSED/*) move "$id" "$BLOCKED"; echo "#$n PR 닫힘 -> $BLOCKED" ;;
         OPEN/CONFLICTING)
-          gh pr comment "$pr" --body "factory: main과 충돌해 Blocked로 옮겼습니다. main을 병합해 충돌을 푼 뒤 QA로 되돌려 주세요." >/dev/null
-          move "$id" "$BLOCKED"; echo "#$n 충돌 -> $BLOCKED" ;;
+          r=$(rounds "$pr" Sync)
+          if [ "$r" -lt "$MAX_REWORK" ]; then
+            report "$pr" Sync "❌ main 충돌 → Rework ($((r+1))/$MAX_REWORK)" "main과 충돌한다. \`git merge origin/main\`으로 병합해 충돌을 해결하고 커밋해라."
+            move "$id" "$REWORK"; echo "#$n 충돌 -> $REWORK"
+          else
+            report "$pr" Sync "⛔ Blocked (충돌 해결 ${MAX_REWORK}회 초과)" "사람이 main을 병합해 충돌을 풀어 주세요."
+            move "$id" "$BLOCKED"; echo "#$n 충돌 -> $BLOCKED"
+          fi ;;
       esac
     done <<<"$(cards "$col")"
   done
@@ -93,27 +116,35 @@ qa() {
     # 결정적 게이트: TEST_CMD가 있으면 QA 워커 전에 종료 코드만 본다(토큰 0). 실패는 Rework, 반복되면 Blocked
     if [ -n "${TEST_CMD:-}" ] && ! (cd "$wt" && bash -c "$TEST_CMD") >"logs/check-$n.log" 2>&1 </dev/null; then
       git worktree remove --force "$wt"
-      fails=$(gh pr view "$pr" --json comments -q '[.comments[]|select(.body|startswith("[Check] ❌"))]|length')
+      fails=$(rounds "$pr" Check)
       if [ "$fails" -lt "$MAX_REWORK" ]; then
-        gh pr comment "$pr" --body "[Check] ❌ 테스트 실패 ($((fails+1))/$MAX_REWORK)"$'\n\n'"$(tail -n 30 "logs/check-$n.log")" >/dev/null
+        report "$pr" Check "❌ 테스트 실패 ($((fails+1))/$MAX_REWORK)" "$(tail -n 30 "logs/check-$n.log")"
         move "$id" "$REWORK"
       else
-        gh pr comment "$pr" --body "[Check] ⛔ Blocked (테스트 실패 ${MAX_REWORK}회 초과). 로그: logs/check-$n.log" >/dev/null
+        report "$pr" Check "⛔ Blocked (테스트 실패 ${MAX_REWORK}회 초과)" "로그: logs/check-$n.log"
         move "$id" "$BLOCKED"
       fi
       continue
     fi
     issue=$(gh issue view "$n" --json title,body -q '"# \(.title)\n\n\(.body)"')
+    extra=""   # 리뷰어가 [qa]로 되돌렸다면 그 요청을 QA에 전달한다
+    if report_body "$pr" | grep '^| [0-9]' | tail -n1 | grep -q 'QA 재검증'; then
+      extra=$'\n\n## 리뷰어가 요청한 추가 검증\n'"$(last_detail "$pr")"
+    fi
     out=$(cd "$wt" && claude -p "$(cat ../../prompts/qa.md)
 
-$issue" --allowedTools "Read,Glob,Grep,Bash" </dev/null 2>&1) || true
+$issue$extra" --allowedTools "Read,Glob,Grep,Bash" </dev/null 2>&1) || true
     echo "$out" >"logs/qa-$n.log"
     git worktree remove --force "$wt"
-    if [ "$(tail -n1 <<<"$out" | tr -d '[:space:]*`')" = "QA:PASS" ]; then
-      gh pr comment "$pr" --body "[QA] ✅ 통과"$'\n\n'"$out" >/dev/null
+    verdict=$(tail -n1 <<<"$out" | tr -d '[:space:]*`'); r=$(rounds "$pr" QA)
+    if [ "$verdict" = "QA:PASS" ]; then
+      report "$pr" QA "✅ 통과" "$out"
       move "$id" "$AI_REVIEW"
+    elif [ "$verdict" = "QA:FAIL" ] && [ "$r" -lt "$MAX_REWORK" ]; then
+      report "$pr" QA "❌ 실패 → Rework ($((r+1))/$MAX_REWORK)" "$out"
+      move "$id" "$REWORK"
     else
-      gh pr comment "$pr" --body "[QA] ❌ 실패 또는 판정 불가"$'\n\n'"$out" >/dev/null
+      report "$pr" QA "⛔ Blocked (판정 불가 또는 실패 ${MAX_REWORK}회 초과)" "$out"
       move "$id" "$BLOCKED"
     fi
   done <<<"$(cards "$QA")"
@@ -135,15 +166,17 @@ $issue" --allowedTools "Read,Glob,Grep,Bash" </dev/null 2>&1) || true
     echo "$out" >"logs/review-$n.log"
     git worktree remove --force "$wt"
     verdict=$(tail -n1 <<<"$out" | tr -d '[:space:]*`')
-    tries=$(gh pr view "$pr" --json comments -q '[.comments[]|select(.body|startswith("[AI Review] ❌"))]|length')
+    tries=$(rounds "$pr" "AI Review")
     if [ "$verdict" = "REVIEW:APPROVE" ]; then
-      gh pr comment "$pr" --body "[AI Review] ✅ 승인"$'\n\n'"$out"$'\n\n'"$(risk_of "$n")" >/dev/null
+      report "$pr" "AI Review" "✅ 승인" "$out"$'\n\n'"$(risk_of "$n")"
       move "$id" "$REVIEW"
     elif [ "$verdict" = "REVIEW:CHANGES" ] && [ "$tries" -lt "$MAX_REWORK" ]; then
-      gh pr comment "$pr" --body "[AI Review] ❌ 수정 요청 ($((tries+1))/$MAX_REWORK)"$'\n\n'"$out" >/dev/null
-      move "$id" "$REWORK"
+      # 반려 라우팅: [builder] 지적이 하나라도 있으면 Rework, [qa]만 있으면 코드 수정 없이 QA 재검증
+      if grep -q '\[builder\]' <<<"$out" || ! grep -q '\[qa\]' <<<"$out"; then dest=$REWORK; lane=Rework; else dest=$QA; lane="QA 재검증"; fi
+      report "$pr" "AI Review" "❌ $lane 요청 ($((tries+1))/$MAX_REWORK)" "$out"
+      move "$id" "$dest"
     else
-      gh pr comment "$pr" --body "[AI Review] ⛔ Blocked (판정 불가 또는 반려 ${MAX_REWORK}회 초과)"$'\n\n'"$out" >/dev/null
+      report "$pr" "AI Review" "⛔ Blocked (판정 불가 또는 반려 ${MAX_REWORK}회 초과)" "$out"
       move "$id" "$BLOCKED"
     fi
   done <<<"$(cards "$AI_REVIEW")"
@@ -159,7 +192,7 @@ rework() {
     wt=.worktrees/rw-$n br=factory/issue-$n
     git worktree add -q -B "$br" "$wt" "origin/$br"
     issue=$(gh issue view "$n" --json title,body -q '"# \(.title)\n\n\(.body)"')
-    feedback=$(gh pr view "$pr" --json comments -q '[.comments[]|select(.body|startswith("[AI Review] ❌") or startswith("[Check] ❌"))]|last|.body')
+    feedback=$(last_detail "$pr")
     (cd "$wt" && claude -p "$(cat ../../prompts/rework.md)
 
 $issue
