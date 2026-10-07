@@ -49,6 +49,7 @@ Todo 이슈 → `claude -p`가 구현 → PR → **QA** 검증 → **AI Review**
 - 어느 컬럼이든 PR이 머지 없이 닫히거나 main과 충돌하면 Blocked.
 - 한 번 실행에 `sync → rework → build → qa → ai_review` 순서로 돈다.
 - 로그는 `logs/{build,qa,review,rework}-N.log`(git 제외).
+- `logs/run-N.txt`는 `factory.sh` 전체 출력을 `tee`로 저장한 파일이다.
 
 ## GraphQL 한도
 `gh project`는 호출 한 번에 포인트를 많이 쓴다. 그래서 실행당 보드와 PR 목록을 한 번만 읽고
