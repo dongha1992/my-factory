@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PreToolUse(Bash): workers never push; the factory script does."""
+"""PreToolUse(Bash): 워커는 push 금지. push는 팩토리 스크립트가 한다."""
 import json, re, sys
 
 def blocked(cmd):
@@ -8,5 +8,5 @@ def blocked(cmd):
 if __name__ == "__main__":
     cmd = json.load(sys.stdin).get("tool_input", {}).get("command", "")
     if blocked(cmd):
-        print("blocked: workers must not git push (factory.sh pushes)", file=sys.stderr)
+        print("차단됨: 워커는 git push 금지 (push는 factory.sh가 한다)", file=sys.stderr)
         sys.exit(2)
