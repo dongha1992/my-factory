@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 source .factory.env
-READY=${READY:-Todo}; BUILDING=${BUILDING:-In Progress}; DONE=${DONE:-Done}
+READY=${READY:-Todo}; BUILDING=${BUILDING:-In Progress}; DONE=${DONE:-Done}; BLOCKED=${BLOCKED:-Blocked}
 mkdir -p logs
 
 pid=$(gh project view "$PROJECT" --owner "$OWNER" --format json -q .id)
@@ -35,8 +35,8 @@ $issue" --permission-mode acceptEdits --allowedTools "Read,Edit,Write,Glob,Grep,
       --body "Closes #$n" >/dev/null
     move "$id" "$DONE"
   else
-    gh issue comment "$n" --body "factory: 커밋이 만들어지지 않았습니다. 로그: logs/issue-$n.log" >/dev/null
-    move "$id" "$READY"   # ponytail: Blocked 컬럼 없음. 다음 실행 때 재시도됨. 반복되면 Blocked 추가
+    gh issue comment "$n" --body "factory: 커밋이 만들어지지 않아 Blocked로 옮겼습니다. 이슈를 보강한 뒤 Ready로 되돌려 주세요. 로그: logs/issue-$n.log" >/dev/null
+    move "$id" "$BLOCKED"   # 사람이 이슈를 고친 뒤 Ready로 되돌려야 재시도된다
   fi
   git worktree remove --force "$wt"
 done <<<"$cards"

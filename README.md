@@ -21,8 +21,8 @@ Ready 이슈 → worktree 생성 → `claude -p`가 구현 → PR 생성 → 카
 
 ## 동작 규칙
 - 워커가 커밋을 만들면 PR을 열고 카드를 Done으로 옮긴다.
-- 커밋이 없으면 이슈에 코멘트를 남기고 카드를 Ready로 되돌린다.
+- 커밋이 없으면 이슈에 코멘트를 남기고 카드를 Blocked로 옮긴다. 이슈를 보강한 뒤 직접 Ready로 되돌려야 재시도된다.
 - 로그는 `logs/issue-N.log`에 남는다(git 제외).
 
 ## 다음에 추가할 것 (필요해질 때만)
-QA 레인, 리뷰 레인, Blocked 컬럼, 병렬 wave (참고: super-board)
+QA 레인, 리뷰 레인, 병렬 wave (참고: super-board)
