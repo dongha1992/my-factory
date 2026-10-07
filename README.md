@@ -32,6 +32,6 @@ Todo 이슈 → `claude -p`가 구현 → PR → **QA** 워커가 검증 → **R
 - 한 번 실행에 `sync → build → qa` 순서로 돈다.
 
 ## 다음에 추가할 것 (필요해질 때만)
-QA 레인, 리뷰 레인, 병렬 wave (참고: super-board)
+리뷰 레인(AI), 반려(send-back) 루프, 충돌한 PR 감지, 병렬 wave (참고: super-board)
 
 Built by the factory.
