@@ -59,6 +59,7 @@ Todo 이슈 → `claude -p`가 구현 → PR → **QA** 검증 → **AI Review**
 - `bash tests/test_factory.sh` — 가짜 gh/claude로 레인 이동 8개 시나리오 (`SUBDIR=1`이면 설치된 `factory/` 위치에서 실행)
 - `bash tests/test_install.sh` — 설치 결과·멱등성·기존 설정 보존
 - `bash tests/test_setup_board.sh` — 컬럼 설정·`--new`·카드 보호
+- 전체 한 번에: `for t in tests/test_*.sh; do bash $t; done; python3 tests/test_guard.py`
 
 ## super-board에서 이식한 것
 - 스킬은 사람이 세션에서 직접 쓰는 용도다(`/git-sync`, `/visual` 등). 레인 스킬(super-build/qa/review)은 super-board의 config·카드 이동을 전제하므로, 팩토리 워커는 `prompts/*.md`(핵심 규칙만 이식)를 따른다.
