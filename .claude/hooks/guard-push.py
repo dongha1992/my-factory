@@ -3,7 +3,7 @@
 import json, re, sys
 
 def blocked(cmd):
-    return re.search(r"\bgit\s+(-\S+\s+)*push\b", cmd) is not None
+    return re.search(r"\bgit(\s+(-[Cc]\s+\S+|--?\S+))*\s+push\b", cmd) is not None
 
 if __name__ == "__main__":
     cmd = json.load(sys.stdin).get("tool_input", {}).get("command", "")
